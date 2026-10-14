@@ -1,0 +1,31 @@
+diff -ruN Pager-orig/makefile Pager-master/makefile
+--- Pager-orig/makefile	2015-04-07 01:46:15.000000000 +0500
++++ Pager-master/makefile	2026-10-14 21:13:15.995035762 +0500
+@@ -51,7 +51,7 @@
+ #		naming scheme you need to specify the path to the library
+ #		and it's name
+ #		library: my_lib.a entry: my_lib.a or path/my_lib.a
+-LIBS= tracker be root
++LIBS= game tracker be root $(STDCPPLIBS)
+ 
+ #	specify additional paths to directories following the standard
+ #	libXXX.so or libXXX.a naming scheme.  You can specify full paths
+@@ -106,5 +106,5 @@
+ 
+ 
+ ## include the makefile-engine
+-include /boot/develop/etc/makefile-engine
++include /etc/makefile-engine
+ 
+diff -ruN Pager-orig/Src/ConvertLines.cpp Pager-master/Src/ConvertLines.cpp
+--- Pager-orig/Src/ConvertLines.cpp	2015-04-07 01:46:15.000000000 +0500
++++ Pager-master/Src/ConvertLines.cpp	2026-10-14 21:10:21.474109947 +0500
+@@ -50,7 +50,7 @@
+ 	
+ 	int index = 0;
+ 	state mach_state = SEARCH;
+-	vector<int> RemoveChars;
++	std::vector<int> RemoveChars;
+ 	
+ 	// scan for '\r\n' and '\r'
+ 	for (index=0; index < length; index++)
