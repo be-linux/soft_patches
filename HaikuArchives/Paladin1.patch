@@ -1,0 +1,137 @@
+diff -ruN a/Paladin/FileUtils.cpp b/Paladin/FileUtils.cpp
+--- a/Paladin/FileUtils.cpp	2025-12-15 13:51:47.000000000 +0500
++++ b/Paladin/FileUtils.cpp	2026-10-14 23:46:02.558035665 +0500
+@@ -8,6 +8,7 @@
+ #include <Mime.h>
+ #include <Path.h>
+ #include <Roster.h>
++#include <StorageDefs.h>
+ 
+ #include "Icons.h"
+ #include "Paladin.h"
+@@ -109,7 +110,7 @@
+ 		if (S_ISDIR(statData.st_mode))
+ 		{
+ 			entry_ref innerref = FindFile(ref,name);
+-			if (innerref.device != -1 && innerref.directory != -1)
++			if (innerref.device() != B_INVALID_DEV && innerref.directory() != B_INVALID_INO)
+ 				return innerref;
+ 		}
+ 	}
+@@ -149,7 +150,7 @@
+ 		if (S_ISDIR(statData.st_mode))
+ 		{
+ 			entry_ref innerref = FindFile(ref,name);
+-			if (innerref.device != -1 && innerref.directory != -1)
++			if (innerref.device() != B_INVALID_DEV && innerref.directory() != B_INVALID_INO)
+ 				return innerref;
+ 		}
+ 	}
+diff -ruN a/Paladin/Makefile b/Paladin/Makefile
+--- a/Paladin/Makefile	2025-12-15 13:51:47.000000000 +0500
++++ b/Paladin/Makefile	2026-10-15 00:10:34.619158377 +0500
+@@ -133,7 +133,7 @@
+ #	- 	if your library does not follow the standard library naming scheme,
+ #		you need to specify the path to the library and it's name.
+ #		(e.g. for mylib.a, specify "mylib.a" or "path/mylib.a")
+-LIBS =  be tracker pcre translation localestub $(STDCPPLIBS)
++LIBS =  root be game tracker pcre translation localestub $(STDCPPLIBS)
+ 
+ #	Specify additional paths to directories following the standard libXXX.so
+ #	or libXXX.a naming scheme. You can specify full paths or paths relative
+@@ -168,7 +168,7 @@
+ #	use. For example, setting DEFINES to "DEBUG=1" will cause the compiler
+ #	option "-DDEBUG=1" to be used. Setting DEFINES to "DEBUG" would pass
+ #	"-DDEBUG" on the compiler's command line.
+-DEFINES = _ZETA_TS_FIND_DIR_
++DEFINES = _ZETA_TS_FIND_DIR_ __VOS__ __HAIKU__
+ 
+ #	Specify the warning level. Either NONE (suppress all warnings),
+ #	ALL (enable all warnings), or leave blank (enable default warnings).
+diff -ruN a/Paladin/Project.cpp b/Paladin/Project.cpp
+--- a/Paladin/Project.cpp	2025-12-15 13:51:47.000000000 +0500
++++ b/Paladin/Project.cpp	2026-10-14 23:49:26.682337660 +0500
+@@ -127,7 +127,7 @@
+ 	entry_ref ref;
+ 	entry.GetRef(&ref);
+ 
+-	fReadOnly = BVolume(ref.device).IsReadOnly();
++	fReadOnly = BVolume(ref.device()).IsReadOnly();
+ 
+ 	TextFile file(ref, B_READ_ONLY);
+ 	status = file.InitCheck();
+@@ -180,22 +180,22 @@
+ 			} else if (entry == "LOCALINCLUDE") {
+ 				if (value.FindFirst("B_FIND_PATH_DEVELOP_HEADERS_DIRECTORY") == 0)
+ 					value.ReplaceFirst("B_FIND_PATH_DEVELOP_HEADERS_DIRECTORY",
+-						BString("/boot/system/develop/headers"));
++						BString("/system/develop/headers"));
+ 				ProjectPath include(fPath.GetFolder(), value.String());
+ 				AddLocalInclude(include.Absolute().String());
+ 			} else if (entry == "SYSTEMINCLUDE") {
+ 				if (value.FindFirst("B_FIND_PATH_DEVELOP_HEADERS_DIRECTORY") == 0)
+ 					value.ReplaceFirst("B_FIND_PATH_DEVELOP_HEADERS_DIRECTORY",
+-						BString("/boot/system/develop/headers"));
++						BString("/system/develop/headers"));
+ 				AddSystemInclude(value.String());
+ 			} else if (entry == "LIBRARY") {
+ 				if (value.FindFirst("B_FIND_PATH_DEVELOP_LIB_DIRECTORY") == 0) {
+ 					if (actualPlatform == PLATFORM_HAIKU_GCC4) {
+ 						value.ReplaceFirst("B_FIND_PATH_DEVELOP_LIB_DIRECTORY",
+-							BString("/boot/system/develop/lib"));
++							BString("/system/develop/lib"));
+ 					} else if (actualPlatform == PLATFORM_HAIKU) {
+ 						value.ReplaceFirst("B_FIND_PATH_DEVELOP_LIB_DIRECTORY",
+-							BString("/boot/system/develop/lib/x86"));
++							BString("/system/develop/lib/x86"));
+ 					} else {
+ 						STRACE(1,("UNKNOWN platform whilst resolving lib path: %d\n", actualPlatform));
+ 					}
+@@ -249,7 +249,7 @@
+ 				else
+ 					fSCMType = SCM_NONE;
+ 			} else if (entry == "PLATFORM") {
+-				if (value.ICompare("Haiku") == 0)
++				if (value.ICompare("Linux") == 0)
+ 					fPlatform = PLATFORM_HAIKU;
+ 				else if (value.ICompare("HaikuGCC4") == 0)
+ 					fPlatform = PLATFORM_HAIKU_GCC4;
+diff -ruN a/Paladin/ThirdParty/TypedRefFilter.cpp b/Paladin/ThirdParty/TypedRefFilter.cpp
+--- a/Paladin/ThirdParty/TypedRefFilter.cpp	2025-12-15 13:51:47.000000000 +0500
++++ b/Paladin/ThirdParty/TypedRefFilter.cpp	2026-10-15 00:03:57.867569751 +0500
+@@ -51,7 +51,7 @@
+ }
+ 
+ 
+-#ifdef __HAIKU__
++#ifdef __HAIKU__ || defined(__VOS__)
+ bool
+ TypedRefFilter::Filter(const entry_ref *ref, BNode *node, struct stat_beos *st,
+ 						const char *filetype)
+diff -ruN a/Paladin/ThirdParty/TypedRefFilter.h b/Paladin/ThirdParty/TypedRefFilter.h
+--- a/Paladin/ThirdParty/TypedRefFilter.h	2025-12-15 13:51:47.000000000 +0500
++++ b/Paladin/ThirdParty/TypedRefFilter.h	2026-10-15 00:09:14.909833756 +0500
+@@ -3,6 +3,7 @@
+ 
+ #include <FilePanel.h>
+ #include <String.h>
++#include <sys/stat.h>
+ 
+ /*
+ 	This utility class is for filtering 
+@@ -25,12 +26,12 @@
+ 	
+ 	// This is because of a source-incompatible change in Haiku's BRefFilter implementation
+ 	// related to POSIX compatibility and the stat structure. *sigh*
+-#ifdef __HAIKU__
++#ifdef __HAIKU__ || defined(__VOS__)
+ 	virtual bool			Filter(const entry_ref *ref, BNode *node,
+-									struct stat_beos *st, const char *filetype);
++									struct stat_beos *st, const char *filetype) override;
+ #else
+ 	virtual bool			Filter(const entry_ref *ref, BNode *node,
+-									struct stat *st, const char *filetype);
++									struct stat *st, const char *filetype) override;
+ #endif
+ 	
+ private:
